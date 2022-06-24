@@ -1,9 +1,16 @@
 use axum::{
     routing::{get},
-    Router
+    Router, http::StatusCode, Json, response::IntoResponse, Extension
 };
+
+use crate::arduino::{Arduino, ArduinoState};
 
 pub fn routes() -> Router {
     Router::new()
-        .route("/", get(|| async {"hello world"}))
+        .route("/", get(current_temp))
+}
+
+async fn current_temp(arduino: Extension<ArduinoState>) -> impl IntoResponse {
+    //arduino.lock().await.display_message("Yippie!");
+    (StatusCode::OK, Json("OK"))
 }
