@@ -1,4 +1,6 @@
+use serde::Deserialize;
+
 #[derive(Debug, Deserialize)]
 pub struct PutLedData {
-    state: bool,
+    pub state: bool,
 }
