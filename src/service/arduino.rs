@@ -1,4 +1,4 @@
-use std::future::Future;
+pub mod actions;
 use std::thread;
 use std::time::Duration;
 use std::{io::Write, sync::Arc};
@@ -8,34 +8,27 @@ use tokio_serial::{SerialPort, Parity};
 use tokio::sync::Mutex;
 use tokio::sync::broadcast::{self, Sender, Receiver};
 
-use crate::model::health::HealthStatus;
-
-pub enum ArduinoError {
-    Timeout,
-    IoError,
-    RecvError,
-}
+use crate::model::error::ArduinoError;
 
 #[repr(u8)]
 enum Action {
     Hello = 0,
     SwitchLed = 1,
     DisplayMessage = 2,
-    ReadTemperature = 3,
-    ReadHumidity = 4,
-    Recv = 5,
+    ReadDHT = 3,
+    Recv = 4,
 }
 
 impl TryFrom<u8> for Action {
     type Error = ();
+
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(Action::Hello),
             1 => Ok(Action::SwitchLed),
             2 => Ok(Action::DisplayMessage),
-            3 => Ok(Action::ReadTemperature),
-            4 => Ok(Action::ReadHumidity),
-            5 => Ok(Action::Recv),
+            3 => Ok(Action::ReadDHT),
+            4 => Ok(Action::Recv),
             _ => Err(()),
         }
     }
@@ -52,7 +45,7 @@ impl Arduino {
     pub async fn new(port: String) -> Self {
         let (tx, mut rx): (Sender<u8>, Receiver<u8>) = broadcast::channel(16);
         let rx2 = tx.subscribe();
-        let serial = tokio_serial::new(&port, 115200)
+        let serial = tokio_serial::new(&port, 9600)
             .parity(Parity::None).timeout(Duration::from_millis(100))
             .open().expect("Failed to open port");
         let mut serial2 = serial.try_clone().expect("clone serial failed");
@@ -64,7 +57,7 @@ impl Arduino {
 
         thread::spawn(move || {
             loop {
-                let mut buf = [0 as u8; 1];
+                let mut buf = [0; 1];
                 if serial2.read(&mut buf).is_ok() {
                     tx.send(buf[0]).unwrap();
                 }
@@ -111,44 +104,10 @@ impl Arduino {
         Ok(())
     }
 
-    async fn read_done_or_timeout(&mut self) -> Result<(), ArduinoError> {
-        if let Ok(Ok(val)) = timeout(Duration::from_millis(500), self.rx.recv()).await {
-            if val == Action::Recv as u8 {
-                Ok(())
-            }
-            else {Err(ArduinoError::RecvError)}
-        }
+    async fn read_or_timeout(&mut self) -> Result<u8, ArduinoError> {
+        if let Ok(Ok(val)) = timeout(Duration::from_millis(5000), self.rx.recv()).await {
+            Ok(val)
+        }    
         else {Err(ArduinoError::Timeout)}
-    }
-
-    pub async fn switch_led(&mut self, state: bool) -> Result<(), ArduinoError> {
-        if self.write_action(Action::SwitchLed).is_ok() {
-            println!("Switching led to {:?}", state as u8);
-            self.write_u8(state as u8).ok();
-            self.read_done_or_timeout().await
-        }
-        else {Err(ArduinoError::IoError)}
-    }
-
-    pub async fn health(&mut self) -> HealthStatus {
-        if self.write_action(Action::Hello).is_ok() 
-        && self.read_done_or_timeout().await.is_ok() {
-            return HealthStatus::Up
-        }
-        HealthStatus::Down
-    }
-
-    // Displays a message on the LCD screen of the arduino
-    // Will first write a display message action, then the amount of bytes (clamped to 32 bytes).
-    // After that the message itself is written.
-    pub async fn display_message(&mut self, message: &str) -> Result<(), ArduinoError> {
-        let message = message.as_bytes();
-        let message = &message[..31.clamp(0, message.len())];
-        if let Ok(_) = self.write_action(Action::DisplayMessage) {
-            self.serial.write(&[message.len() as u8]).ok();
-            self.serial.write(message).ok();
-            self.read_done_or_timeout().await
-        }
-        else {Err(ArduinoError::IoError)}
     }
 }

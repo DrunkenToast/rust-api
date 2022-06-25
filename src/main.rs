@@ -33,7 +33,7 @@ async fn main() {
 
     let app = Router::new()
         .nest("/health", handler::health::routes())
-        .nest("/temp", handler::temp::routes())
+        .nest("/dht", handler::dht::routes())
         .nest("/led", handler::led::routes())
         .fallback(handler::handler_404.into_service())
         .layer(
