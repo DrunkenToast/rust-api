@@ -1,18 +1,17 @@
 extern crate dotenv;
 
 mod handler;
-mod arduino;
+mod service;
 mod model;
 use std::{env, net::SocketAddr, sync::Arc};
 
-use arduino::Arduino;
+use service::arduino::{Arduino, ArduinoState};
 use axum::{handler::Handler, Extension};
 use dotenv::dotenv;
 use tokio::{signal, sync::Mutex};
 
 use axum::{Router};
-use tower::ServiceBuilder;
-use tower_http::{trace::{TraceLayer, DefaultOnRequest, DefaultOnResponse, DefaultMakeSpan}, LatencyUnit};
+use tower_http::{trace::{TraceLayer, DefaultOnRequest, DefaultOnResponse}};
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -22,6 +21,7 @@ async fn main() {
     dotenv().ok();
 
     let serial_port = env::var("SERIAL_PORT").expect("Serial port not defined in .env");
+    let arduino: ArduinoState = Arc::new(Mutex::new(Arduino::new(serial_port).await));
 
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
@@ -46,7 +46,7 @@ async fn main() {
                     .level(Level::INFO)
             )
         )
-        .layer(Extension(Arc::new(Mutex::new(Arduino::new(serial_port).await))));
+        .layer(Extension(arduino));
 
     let addr: SocketAddr = env::var("ADDR").unwrap()
         .parse().expect("Cannot parse server address");

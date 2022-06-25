@@ -3,7 +3,7 @@ use axum::{
     Router, http::StatusCode, Json, response::IntoResponse, Extension
 };
 
-use crate::arduino::{Arduino, ArduinoState};
+use crate::service::arduino::{ArduinoState};
 
 pub fn routes() -> Router {
     Router::new()
