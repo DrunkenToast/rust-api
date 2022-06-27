@@ -11,7 +11,10 @@ pub fn routes() -> Router {
 }
 
 async fn switch_led(extract::Json(input): extract::Json<PutLedData>, Extension(arduino): Extension<ArduinoState>) -> ApiResponse<()> {
-    let mut arduino = arduino.lock().await;
-    arduino.switch_led(input.state).await?;
+    tokio::spawn(async move {
+        let mut arduino = arduino.lock().await;
+        arduino.switch_led(input.state).await
+    }).await.unwrap()?;
+
     Ok(())
 }

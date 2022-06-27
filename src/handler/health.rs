@@ -2,19 +2,20 @@ use axum::{
     routing::{get},
     Json,
     Router,
-    response::IntoResponse,
-    http::StatusCode, Extension,
+    Extension,
 };
 
-use crate::{service::arduino::ArduinoState, model::health::Health};
+use crate::{service::arduino::ArduinoState, model::{health::Health, response::ApiResponse}};
 
 pub fn routes() -> Router {
     Router::new().route("/", get(health))
 }
 
-async fn health(Extension(arduino): Extension<ArduinoState>) -> impl IntoResponse {
-    let h = Health {
-        arduino: arduino.lock().await.health().await
-    };
-    (StatusCode::OK, Json(h))
+async fn health(Extension(arduino): Extension<ArduinoState>) -> ApiResponse<Json<Health>> {
+    let res = tokio::spawn(async move {
+        let mut arduino = arduino.lock().await;
+        arduino.health().await
+    }).await.unwrap()?;
+
+    Ok(Json(Health {arduino: res}))
 }

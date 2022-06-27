@@ -3,7 +3,6 @@ use std::thread;
 use std::time::Duration;
 use std::{io::Write, sync::Arc};
 use std::io::{self, Read};
-use tokio::time::timeout;
 use tokio_serial::{SerialPort, Parity};
 use tokio::sync::Mutex;
 use tokio::sync::broadcast::{self, Sender, Receiver};
@@ -43,8 +42,8 @@ pub struct Arduino {
 
 impl Arduino {
     pub async fn new(port: String) -> Self {
-        let (tx, mut rx): (Sender<u8>, Receiver<u8>) = broadcast::channel(16);
-        let rx2 = tx.subscribe();
+        let (tx, rx): (Sender<u8>, Receiver<u8>) = broadcast::channel(16);
+        let mut rx2 = tx.subscribe();
         let serial = tokio_serial::new(&port, 9600)
             .parity(Parity::None).timeout(Duration::from_millis(100))
             .open().expect("Failed to open port");
@@ -52,7 +51,7 @@ impl Arduino {
 
         let mut con = Self {
             serial,
-            rx: rx2
+            rx,
         };
 
         thread::spawn(move || {
@@ -67,7 +66,7 @@ impl Arduino {
         // Watch incoming serial stream 
         tokio::spawn(async move {
             loop {
-                if let Ok(val) = rx.recv().await {
+                if let Ok(val) = rx2.recv().await {
                     println!("=> {:?}", val);
                 }
             }
@@ -105,9 +104,19 @@ impl Arduino {
     }
 
     async fn read_or_timeout(&mut self) -> Result<u8, ArduinoError> {
-        if let Ok(Ok(val)) = timeout(Duration::from_millis(5000), self.rx.recv()).await {
-            Ok(val)
-        }    
-        else {Err(ArduinoError::Timeout)}
+        //if let Ok(Ok(val)) = timeout(Duration::from_millis(5000), self.rx.recv()).await {
+            //Ok(val)
+        //}    
+        //else {Err(ArduinoError::Timeout)}
+        match self.rx.recv().await {
+            Ok(val) => {
+                Ok(val)
+            }
+            Err(e) => {
+                println!("AAAAAAAAAAAAAAAAA {:?}", e);
+                Err(ArduinoError::IoError)
+            }
+        }
+        //Ok(self.rx.recv().await.unwrap())
     }
 }

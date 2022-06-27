@@ -2,12 +2,16 @@ use crate::model::{health::HealthStatus, dht_measurement::DhtMeasurement};
 use super::{Arduino, ArduinoError, Action};
 
 impl Arduino {
-    pub async fn health(&mut self) -> HealthStatus {
-        if self.write_action(Action::Hello).is_ok() 
-        && self.read_or_timeout().await.is_ok() {
-            return HealthStatus::Up
+    pub async fn health(&mut self) -> Result<HealthStatus, ArduinoError> {
+        self.write_action(Action::Hello)?;
+        match Action::try_from(self.read_or_timeout().await?) {
+            Ok(Action::Recv) => {
+                Ok(HealthStatus::Up)
+            }
+            _ => {
+                Ok(HealthStatus::Down)
+            }
         }
-        HealthStatus::Down
     }
 
     pub async fn switch_led(&mut self, state: bool) -> Result<(), ArduinoError> {
@@ -19,19 +23,25 @@ impl Arduino {
     }
 
     pub async fn measure_dht(&mut self) -> Result<DhtMeasurement, ArduinoError>{
+        println!("Length: {}", self.rx.len());
+        println!("1");
         self.write_action(Action::ReadDHT)?;
 
+        println!("2");
         // Read temperature
-        let t1: i16 = self.read_or_timeout().await? as i16;
-        let t2: i16 = self.read_or_timeout().await? as i16;
+        let t1: i16 = dbg!(self.read_or_timeout().await)? as i16;
+        let t2: i16 = dbg!(self.read_or_timeout().await)? as i16;
         let temperature: f64 = (t2 << 8 | t1) as f64 / 10.0;
 
+        println!("3");
         // Read humidity
-        let h1: u16 = self.read_or_timeout().await? as u16;
-        let h2: u16 = self.read_or_timeout().await? as u16;
+        let h1: u16 = dbg!(self.read_or_timeout().await)? as u16;
+        let h2: u16 = dbg!(self.read_or_timeout().await)? as u16;
         let humidity: f64 = (h2 << 8 | h1) as f64 / 10.0;
 
-        self.read_or_timeout().await?;
+        println!("4");
+        dbg!(self.read_or_timeout().await)?;
+        println!("5");
 
         Ok(DhtMeasurement {
             temperature,

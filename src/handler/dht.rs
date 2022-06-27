@@ -12,6 +12,10 @@ pub fn routes() -> Router {
 }
 
 async fn dht_measurement(arduino: Extension<ArduinoState>) -> ApiResponse<Json<DhtMeasurement>> {
-    let mut arduino = arduino.lock().await;
-    Ok(Json(arduino.measure_dht().await?))
+    let res = tokio::spawn(async move {
+        let mut arduino = arduino.lock().await;
+        arduino.measure_dht().await
+    }).await.unwrap()?;
+
+    Ok(Json(res))
 }
