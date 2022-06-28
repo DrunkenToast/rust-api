@@ -5,7 +5,7 @@ mod service;
 mod model;
 use std::{env, net::SocketAddr, sync::Arc};
 
-use service::arduino::{Arduino, ArduinoState};
+use service::{arduino::{Arduino, ArduinoState}, sql::open_database_connection, scheduler::start_scheduler};
 use axum::{handler::Handler, Extension};
 use dotenv::dotenv;
 use tokio::{signal, sync::Mutex};
@@ -15,14 +15,17 @@ use tower_http::{trace::{TraceLayer, DefaultOnRequest, DefaultOnResponse}};
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-
 #[tokio::main]
 async fn main() {
     dotenv().ok();
 
     let serial_port = env::var("SERIAL_PORT").expect("Serial port not defined in .env");
     let arduino: ArduinoState = Arc::new(Mutex::new(Arduino::new(serial_port).await));
+    let db = Arc::new(Mutex::new(open_database_connection().expect("Database failed to open")));
+    arduino.lock().await.display_message("Testing the length of the display as well as wrapping").await.unwrap();
 
+    start_scheduler(arduino.clone(), db.clone());
+    
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG")
@@ -32,11 +35,11 @@ async fn main() {
         .init();
 
     let app = Router::new()
-        .nest("/health", handler::health::routes())
+        .nest("/health", handler::health::routes()) // Routes
         .nest("/dht", handler::dht::routes())
         .nest("/led", handler::led::routes())
-        .fallback(handler::handler_404.into_service())
-        .layer(
+        .fallback(handler::handler_404.into_service()) // Fallback
+        .layer( // Onions
             TraceLayer::new_for_http()
             .on_request(
                 DefaultOnRequest::new().level(Level::DEBUG)
@@ -46,7 +49,8 @@ async fn main() {
                     .level(Level::INFO)
             )
         )
-        .layer(Extension(arduino));
+        .layer(Extension(arduino)) // Extensions
+        .layer(Extension(db));
 
     let addr: SocketAddr = env::var("ADDR").unwrap()
         .parse().expect("Cannot parse server address");

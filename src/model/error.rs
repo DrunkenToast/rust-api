@@ -1,6 +1,9 @@
 use core::fmt;
 use std::{io, error::Error, fmt::Display};
 
+#[derive(Clone, Copy, Debug)]
+pub struct DatabaseError;
+
 #[derive(Debug)]
 pub enum ArduinoError {
     Timeout,
