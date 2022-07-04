@@ -44,8 +44,8 @@ impl Arduino {
     pub async fn new(port: String) -> Self {
         let (tx, rx): (Sender<u8>, Receiver<u8>) = broadcast::channel(16);
         let mut rx2 = tx.subscribe();
-        let serial = tokio_serial::new(&port, 9600)
-            .parity(Parity::None).timeout(Duration::from_millis(100))
+        let serial = tokio_serial::new(&port, 57600)
+            .timeout(Duration::from_millis(100))
             .open().expect("Failed to open port");
         let mut serial2 = serial.try_clone().expect("clone serial failed");
 
@@ -97,8 +97,12 @@ impl Arduino {
     }
 
     fn write_u8(&mut self, b: u8) -> Result<(), io::Error> {
-        let buf = [b];
-        self.serial.write_all(&buf)?;
+        self.write_buf(&[b])?;
+        Ok(())
+    }
+
+    fn write_buf(&mut self, buf: &[u8]) -> Result<(), io::Error> {
+        self.serial.write_all(buf)?;
         self.serial.flush()?;
         Ok(())
     }

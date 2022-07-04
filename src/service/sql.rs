@@ -10,7 +10,7 @@ pub(crate) type DatabaseState = Arc<Mutex<Connection<>>>;
 
 pub(crate) fn open_database_connection() -> Result<Connection> {
     let db = Connection::open("./db.db3")?;
-    println!("{}", db.is_autocommit());
+    println!("Connected with db: {}", db.is_autocommit());
     init_db(&db)?;
     Ok(db)
 }

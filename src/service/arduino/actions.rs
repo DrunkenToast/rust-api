@@ -52,8 +52,9 @@ impl Arduino {
         let message = message.as_bytes();
         let message = &message[..32.clamp(0, message.len())];
         if self.write_action(Action::DisplayMessage).is_ok() {
-            self.serial.write(&[message.len() as u8]).ok();
-            self.serial.write(message).ok();
+            self.write_u8((message.len()) as u8)?;
+            self.write_buf(message)?;
+            self.serial.flush()?;
             self.read_or_timeout().await?;
             Ok(())
         }

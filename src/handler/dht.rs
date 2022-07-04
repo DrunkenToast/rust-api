@@ -12,12 +12,13 @@ pub fn routes() -> Router {
         .route("/history", get(dht_history))
 }
 
-async fn dht_measurement(arduino: Extension<ArduinoState>) -> ApiResponse<Json<DhtMeasurement>> {
+async fn dht_measurement(arduino: Extension<ArduinoState>, db: Extension<DatabaseState>) -> ApiResponse<Json<DhtMeasurement>> {
     let res = tokio::spawn(async move {
         let mut arduino = arduino.lock().await;
         arduino.measure_dht().await
     }).await.unwrap()?;
-
+    let db = db.lock().await;
+    _ = res.insert(&(db));
     Ok(Json(res))
 }
 

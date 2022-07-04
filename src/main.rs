@@ -3,7 +3,7 @@ extern crate dotenv;
 mod handler;
 mod service;
 mod model;
-use std::{env, net::SocketAddr, sync::Arc};
+use std::{env, net::SocketAddr, sync::Arc, thread::{sleep_ms, sleep}, time::Duration};
 
 use service::{arduino::{Arduino, ArduinoState}, sql::open_database_connection, scheduler::start_scheduler};
 use axum::{handler::Handler, Extension};
@@ -22,7 +22,6 @@ async fn main() {
     let serial_port = env::var("SERIAL_PORT").expect("Serial port not defined in .env");
     let arduino: ArduinoState = Arc::new(Mutex::new(Arduino::new(serial_port).await));
     let db = Arc::new(Mutex::new(open_database_connection().expect("Database failed to open")));
-    arduino.lock().await.display_message("Testing the length of the display as well as wrapping").await.unwrap();
 
     start_scheduler(arduino.clone(), db.clone());
     
@@ -37,6 +36,7 @@ async fn main() {
     let app = Router::new()
         .nest("/health", handler::health::routes()) // Routes
         .nest("/dht", handler::dht::routes())
+        .nest("/msg", handler::msg::routes())
         .nest("/led", handler::led::routes())
         .fallback(handler::handler_404.into_service()) // Fallback
         .layer( // Onions
