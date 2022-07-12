@@ -1,17 +1,18 @@
 extern crate dotenv;
 
-mod handler;
-mod service;
 mod model;
-use std::{env, net::SocketAddr, sync::Arc, thread::{sleep_ms, sleep}, time::Duration};
+mod handler;  
+mod service;
+
+use std::{env, net::SocketAddr, sync::Arc};
 
 use service::{arduino::{Arduino, ArduinoState}, sql::open_database_connection, scheduler::start_scheduler};
 use axum::{handler::Handler, Extension};
 use dotenv::dotenv;
 use tokio::{signal, sync::Mutex};
 
-use axum::{Router};
-use tower_http::{trace::{TraceLayer, DefaultOnRequest, DefaultOnResponse}};
+use axum::Router;
+use tower_http::trace::{TraceLayer, DefaultOnRequest, DefaultOnResponse};
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -19,7 +20,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 async fn main() {
     dotenv().ok();
 
-    let serial_port = env::var("SERIAL_PORT").expect("Serial port not defined in .env");
+    let serial_port = env::var("SERIAL_PORT").expect("SERIAL_PORT not defined in .env");
     let arduino: ArduinoState = Arc::new(Mutex::new(Arduino::new(serial_port).await));
     let db = Arc::new(Mutex::new(open_database_connection().expect("Database failed to open")));
 
