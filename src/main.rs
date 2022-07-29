@@ -7,12 +7,12 @@ mod service;
 use std::{env, net::SocketAddr, sync::Arc};
 
 use service::{arduino::{Arduino, ArduinoState}, sql::open_database_connection, scheduler::start_scheduler};
-use axum::{handler::Handler, Extension};
+use axum::{handler::Handler, Extension, http::Method};
 use dotenv::dotenv;
 use tokio::{signal, sync::Mutex};
 
 use axum::Router;
-use tower_http::trace::{TraceLayer, DefaultOnRequest, DefaultOnResponse};
+use tower_http::{trace::{TraceLayer, DefaultOnRequest, DefaultOnResponse}, cors::{CorsLayer, Any, AllowHeaders}};
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -34,12 +34,18 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST, Method::PUT])
+        .allow_headers(Any)
+        .allow_origin(Any);
+
     let app = Router::new()
         .nest("/health", handler::health::routes()) // Routes
         .nest("/dht", handler::dht::routes())
         .nest("/msg", handler::msg::routes())
         .nest("/led", handler::led::routes())
         .fallback(handler::handler_404.into_service()) // Fallback
+        .layer(cors)
         .layer( // Onions
             TraceLayer::new_for_http()
             .on_request(
