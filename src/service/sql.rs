@@ -37,7 +37,7 @@ impl DhtMeasurement {
     }
 
     pub fn select_all(db: &Connection) -> Result<Vec<Self>> {
-        let mut stmt = db.prepare_cached("SELECT time, temperature, humidity FROM dht")?;
+        let mut stmt = db.prepare_cached("SELECT datetime(time, 'localtime'), temperature, humidity FROM dht")?;
         let mut measurements = Vec::new();
         let dht_iter = stmt.query_map([], |row| {
             Ok(Self {
@@ -52,3 +52,4 @@ impl DhtMeasurement {
         Ok(measurements)
     }
 }
+
