@@ -18,7 +18,7 @@ async fn dht_measurement(arduino: Extension<ArduinoState>, db: Extension<Databas
         arduino.measure_dht().await
     }).await.unwrap()?;
     let db = db.lock().await;
-    _ = res.insert(&(db));
+    let _ = res.insert(&(db));
     Ok(Json(res))
 }
 
