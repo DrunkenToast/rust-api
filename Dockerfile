@@ -17,7 +17,7 @@ RUN cargo build --release --bin rust-api
 FROM debian:buster-slim AS runtime
 RUN apt-get update && apt-get install -y sqlite3
 WORKDIR rust-api
-COPY --from=builder /rust-api/release/debug/rust-api /usr/local/bin
+COPY --from=builder /rust-api/release/rust-api /usr/local/bin
 EXPOSE 3000
 ENTRYPOINT ["/usr/local/bin/rust-api"]
 
