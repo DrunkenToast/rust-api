@@ -1,23 +1,12 @@
-FROM lukemathwalker/cargo-chef:latest-rust-1.56.0 AS chef
-WORKDIR rust-api
-
-FROM chef AS planner
+FROM rust as builder
+WORKDIR /usr/src/rust-api
 COPY . .
-RUN cargo chef prepare --recipe-path recipe.json
+RUN cargo install --path .
 
-FROM chef AS builder 
-COPY --from=planner /rust-api/recipe.json recipe.json
-# Build dependencies - this is the caching Docker layer!
-RUN cargo chef cook --release --recipe-path recipe.json
-# Build rust-apilication
-COPY . .
-RUN cargo build --release --bin rust-api
-
-# We do not need the Rust toolchain to run the binary!
-FROM debian:buster-slim AS runtime
-RUN apt-get update && apt-get install -y sqlite3
-WORKDIR rust-api
-COPY --from=builder /rust-api/release/rust-api /usr/local/bin
+FROM debian:buster-slim
+RUN apt-get update && apt-get install -y sqlite3 curl
+COPY --from=builder /usr/local/cargo/bin/rust-api /usr/local/bin/rust-api
+ENV SERIAL_PORT /dev/ttyACM0
 EXPOSE 3000
-ENTRYPOINT ["/usr/local/bin/rust-api"]
+CMD ["rust-api"]
 
