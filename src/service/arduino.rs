@@ -3,6 +3,7 @@ use std::thread;
 use std::time::Duration;
 use std::{io::Write, sync::Arc};
 use std::io::{self, Read};
+use tokio::time::timeout;
 use tokio_serial::{SerialPort, Parity};
 use tokio::sync::Mutex;
 use tokio::sync::broadcast::{self, Sender, Receiver};
@@ -108,19 +109,9 @@ impl Arduino {
     }
 
     async fn read_or_timeout(&mut self) -> Result<u8, ArduinoError> {
-        //if let Ok(Ok(val)) = timeout(Duration::from_millis(5000), self.rx.recv()).await {
-            //Ok(val)
-        //}    
-        //else {Err(ArduinoError::Timeout)}
-        match self.rx.recv().await {
-            Ok(val) => {
-                Ok(val)
-            }
-            Err(e) => {
-                println!("AAAAAAAAAAAAAAAAA {:?}", e);
-                Err(ArduinoError::IoError)
-            }
-        }
-        //Ok(self.rx.recv().await.unwrap())
+        if let Ok(val) = timeout(Duration::from_millis(5000), self.rx.recv()).await {
+            Ok(val?)
+        }    
+        else {Err(ArduinoError::Timeout)}
     }
 }

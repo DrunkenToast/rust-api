@@ -1,6 +1,8 @@
 use core::fmt;
 use std::{io, error::Error, fmt::Display};
 
+use tokio::sync::broadcast::error::RecvError;
+
 #[derive(Clone, Copy, Debug)]
 pub struct DatabaseError;
 
@@ -12,6 +14,12 @@ pub enum ArduinoError {
 
 impl From<io::Error> for ArduinoError {
     fn from(_err: io::Error) -> Self {
+        Self::IoError
+    }
+}
+
+impl From<RecvError> for ArduinoError {
+    fn from(_err: RecvError) -> Self {
         Self::IoError
     }
 }

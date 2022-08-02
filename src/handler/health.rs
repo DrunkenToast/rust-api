@@ -15,7 +15,7 @@ async fn health(Extension(arduino): Extension<ArduinoState>) -> ApiResponse<Json
     let res = tokio::spawn(async move {
         let mut arduino = arduino.lock().await;
         arduino.health().await
-    }).await.unwrap()?;
+    }).await.unwrap();
 
     Ok(Json(Health {arduino: res}))
 }

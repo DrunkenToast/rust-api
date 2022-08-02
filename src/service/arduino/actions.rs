@@ -4,14 +4,22 @@ use crate::model::{health::HealthStatus, dht_measurement::DhtMeasurement};
 use super::{Arduino, ArduinoError, Action};
 
 impl Arduino {
-    pub async fn health(&mut self) -> Result<HealthStatus, ArduinoError> {
-        self.write_action(Action::Hello)?;
-        match Action::try_from(self.read_or_timeout().await?) {
-            Ok(Action::Recv) => {
-                Ok(HealthStatus::Up)
+    pub async fn health(&mut self) -> HealthStatus {
+        if let Err(_) = self.write_action(Action::Hello) {
+            return HealthStatus::Down
+        }
+
+        match self.read_or_timeout().await {
+            Ok(val) => {
+                if let Ok(Action::Recv) = Action::try_from(val) {
+                    HealthStatus::Up
+                }
+                else {
+                    HealthStatus::Down
+                }
             }
             _ => {
-                Ok(HealthStatus::Down)
+                HealthStatus::Down
             }
         }
     }
@@ -49,6 +57,7 @@ impl Arduino {
     // Will first write a display message action, then the amount of bytes (clamped to 32 bytes).
     // After that the message itself is written.
     pub async fn display_message(&mut self, message: &str) -> Result<(), ArduinoError> {
+        let message = message.replace(|c: char| !c.is_ascii(), "?");
         let message = message.as_bytes();
         let message = &message[..32.clamp(0, message.len())];
         if self.write_action(Action::DisplayMessage).is_ok() {
